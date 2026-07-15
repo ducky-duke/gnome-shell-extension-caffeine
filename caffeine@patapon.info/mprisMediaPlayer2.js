@@ -143,8 +143,15 @@ const MprisPlayer = GObject.registerClass({
 
     _lastEmittedPlayStatus = false;
 
+    _destroyed = false;
+
     refresh() {
         this._getMPlayerApps((dbusNames) => {
+            // The instance may have been destroyed while the async
+            // ListNames call was in flight
+            if (this._destroyed) {
+                return;
+            }
             dbusNames.forEach((dbusName) => this._addPlayer(dbusName));
             this._emitPlayStatus(true);
         });
@@ -279,6 +286,7 @@ const MprisPlayer = GObject.registerClass({
     }
 
     _onDestroy() {
+        this._destroyed = true;
         this._dbusProxy.disconnectSignal(this._dbusHandlerId);
         for (const dbusName of this._activePlayers.keys()) {
             this._removePlayer(dbusName);
