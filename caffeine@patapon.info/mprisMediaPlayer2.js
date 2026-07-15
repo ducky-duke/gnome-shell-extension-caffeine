@@ -144,9 +144,10 @@ const MprisPlayer = GObject.registerClass({
     _lastEmittedPlayStatus = false;
 
     refresh() {
-        const dbusNames = this._getMPlayerApps();
-        dbusNames.forEach((dbusName) => this._addPlayer(dbusName));
-        this._emitPlayStatus(true);
+        this._getMPlayerApps((dbusNames) => {
+            dbusNames.forEach((dbusName) => this._addPlayer(dbusName));
+            this._emitPlayStatus(true);
+        });
     }
 
     /**
@@ -256,16 +257,25 @@ const MprisPlayer = GObject.registerClass({
     }
 
     /**
-     * Get the dbus name list for mpris players
-     * @returns {string[]}
+     * Get the dbus name list for mpris players asynchronously
+     * @param {(mprisPlayers: string[]) => void} callback
      */
-    _getMPlayerApps() {
-        const [names] = this._dbusProxy.ListNamesSync();
-        const mprisPlayers = names.filter((dbusName) =>
-            dbusName.startsWith(this._mprisPrefix)
-        );
+    _getMPlayerApps(callback) {
+        this._dbusProxy.ListNamesRemote((result, error) => {
+            if (error || !result) {
+                if (error) {
+                    log(`Failed to list DBus names: ${error}`);
+                }
+                callback([]);
+                return;
+            }
 
-        return mprisPlayers;
+            const [names] = result;
+            const mprisPlayers = names.filter((dbusName) =>
+                dbusName.startsWith(this._mprisPrefix)
+            );
+            callback(mprisPlayers);
+        });
     }
 
     _onDestroy() {
